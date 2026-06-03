@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>صيدليتي</title>
     <meta name="theme-color" content="#060d3a">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="logo.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Tajawal:wght@300;400;500;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" rel="stylesheet">
     <style>
@@ -413,6 +417,235 @@
         .footer-sub { font-size: 10px; letter-spacing: 3px; color: rgba(212,160,23,0.35); font-family: 'Tajawal', sans-serif; }
 
         #zone-title { font-size: 14px; }
+
+        /* ══ PRAYER STRIP (horizontal) ══ */
+        .prayer-section { margin-bottom: 24px; }
+
+        .prayer-card {
+            background: linear-gradient(160deg, rgba(2,7,32,0.98) 0%, rgba(4,12,50,0.96) 100%);
+            border: 1.5px solid var(--gold-bright);
+            border-radius: 16px;
+            padding: 10px 12px 12px;
+            box-shadow:
+                0 0 0 1px rgba(255,215,0,0.12),
+                0 0 22px 4px rgba(255,215,0,0.18),
+                0 0 60px 10px rgba(255,200,0,0.08),
+                inset 0 0 30px rgba(255,215,0,0.04);
+            backdrop-filter: blur(20px);
+            position: relative;
+        }
+        /* coin ornements */
+        .prayer-card::before, .prayer-card::after {
+            content: '✦';
+            position: absolute;
+            color: var(--gold-bright);
+            font-size: 10px;
+            opacity: 0.7;
+            line-height: 1;
+        }
+        .prayer-card::before { top: 5px; left: 8px; }
+        .prayer-card::after  { top: 5px; right: 8px; }
+
+        .prayer-card-header {
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding-bottom: 7px;
+            border-bottom: 1px solid rgba(255,215,0,0.2);
+            position: relative;
+        }
+        .prayer-card-title {
+            font-family: 'Amiri', serif; font-size: 14px; font-weight: 700;
+            color: var(--gold-shine);
+            text-shadow: 0 0 12px rgba(255,215,0,0.7);
+            letter-spacing: 1px;
+        }
+        .prayer-hijri {
+            font-size: 10px; color: var(--text-dim);
+            font-family: 'Tajawal', sans-serif;
+            position: absolute; left: 0;
+        }
+
+        /* ── Grid 5 cells ── */
+        .prayer-strip {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 4px;
+        }
+
+        .prayer-cell {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 3px;
+            background: linear-gradient(160deg, #c8860a 0%, #ffd700 50%, #c8860a 100%);
+            border: 1.5px solid var(--gold-shine);
+            border-radius: 9px;
+            padding: 6px 2px 5px;
+            min-width: 0;
+            position: relative;
+            transition: all .25s;
+            box-shadow: 0 0 10px rgba(255,215,0,0.35), inset 0 1px 0 rgba(255,255,200,0.4);
+        }
+        .prayer-cell.active {
+            background: linear-gradient(160deg, #ffe566 0%, #fff5a0 50%, #ffe566 100%);
+            box-shadow: 0 0 20px rgba(255,215,0,0.7), inset 0 1px 0 rgba(255,255,255,0.5);
+            border-color: #fff5a0;
+        }
+        .prayer-cell.active::before {
+            content: '';
+            position: absolute; top: 0; left: 10%; right: 10%; height: 2px;
+            background: linear-gradient(90deg, transparent, #fff, transparent);
+            border-radius: 2px;
+        }
+        .prayer-cell.next-prayer {
+            background: linear-gradient(160deg, #b8730a 0%, #e8a800 50%, #b8730a 100%);
+            box-shadow: 0 0 12px rgba(255,215,0,0.25);
+        }
+        .prayer-cell .pc-icon { font-size: 13px; line-height: 1; }
+        .prayer-cell .pc-name {
+            font-family: 'Amiri', serif; font-size: 12px; font-weight: 700;
+            color: #020b2e;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        .prayer-cell.active .pc-name { color: #020b2e; font-size: 12px; }
+        .prayer-cell .pc-time {
+            font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 700;
+            color: #020b2e; direction: ltr;
+            letter-spacing: -0.3px;
+        }
+        .prayer-cell.active .pc-time { color: #020b2e; }
+        .prayer-cell .pc-badge {
+            font-size: 7.5px; color: #ffd700;
+            background: #020b2e; border-radius: 3px;
+            padding: 1px 4px; font-family: 'Tajawal', sans-serif; font-weight: 700;
+            line-height: 1.4;
+        }
+
+        /* ── Adhan trigger button ── */
+        .adhan-btn-row {
+            display: flex; align-items: center; justify-content: center;
+            margin-top: 12px;
+        }
+        .adhan-trigger-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,215,0,0.06));
+            color: var(--gold-bright);
+            border: 1px solid rgba(255,215,0,0.5);
+            border-radius: 30px;
+            padding: 10px 24px;
+            font-family: 'Tajawal', sans-serif; font-size: 14px; font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 0 18px rgba(255,215,0,0.15);
+            transition: all .2s;
+            letter-spacing: 0.5px;
+        }
+        .adhan-trigger-btn:hover {
+            background: rgba(255,215,0,0.28);
+            box-shadow: 0 0 30px rgba(255,215,0,0.45);
+            transform: scale(1.04);
+        }
+        .adhan-trigger-btn:active { transform: scale(0.97); }
+
+        /* Minaret animation in moon circle */
+        .crown-ring.adhan-playing {
+            animation: adhan-glow 1s ease-in-out infinite !important;
+            border-color: var(--gold-shine);
+        }
+        @keyframes adhan-glow {
+            0%,100%{ box-shadow: 0 0 25px 8px var(--gold-glow), 0 0 60px 15px rgba(255,200,0,0.3), inset 0 0 25px rgba(255,215,0,0.15); }
+            50%{ box-shadow: 0 0 60px 20px rgba(255,215,0,1), 0 0 120px 40px rgba(255,200,0,0.7), inset 0 0 50px rgba(255,215,0,0.5); }
+        }
+        .crown-icon-minaret {
+            display: none; font-size: 38px;
+            filter: drop-shadow(0 0 18px var(--gold-bright));
+            animation: minaret-pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes minaret-pulse {
+            0%,100%{ transform: scale(1); }
+            50%{ transform: scale(1.15); }
+        }
+        .crown-icon-normal { display: flex; }
+
+        /* Adhan overlay */
+        .adhan-overlay {
+            position: fixed; inset: 0; z-index: 999;
+            background: rgba(2, 9, 40, 0.92);
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column; gap: 16px;
+            backdrop-filter: blur(10px);
+            opacity: 0; pointer-events: none;
+            transition: opacity .5s;
+        }
+        .adhan-overlay.visible {
+            opacity: 1; pointer-events: all;
+        }
+        .adhan-minaret-big {
+            font-size: 80px;
+            filter: drop-shadow(0 0 30px var(--gold-bright));
+            animation: minaret-pulse 1.2s ease-in-out infinite;
+        }
+        .adhan-prayer-name {
+            font-family: 'Amiri', serif; font-size: 36px; font-weight: 700;
+            color: var(--gold-shine);
+            text-shadow: 0 0 30px rgba(255,215,0,0.9);
+        }
+        .adhan-label {
+            font-family: 'Tajawal', sans-serif; font-size: 14px;
+            color: var(--text-dim); letter-spacing: 2px;
+        }
+        .adhan-close-btn {
+            margin-top: 10px; padding: 10px 28px;
+            background: rgba(255,215,0,0.15); color: var(--gold-bright);
+            border: 1px solid rgba(255,215,0,0.4); border-radius: 30px;
+            font-family: 'Tajawal', sans-serif; font-size: 14px; font-weight: 700;
+            cursor: pointer; transition: background .2s;
+        }
+        .adhan-close-btn:hover { background: rgba(255,215,0,0.28); }
+
+        /* Mosque search box inside adhan overlay */
+        .adhan-mosque-box {
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            background: rgba(255,215,0,0.08);
+            border: 1px solid rgba(255,215,0,0.35);
+            border-radius: 16px; padding: 16px 28px;
+            text-align: center;
+        }
+        .adhan-mosque-text {
+            font-family: 'Tajawal', sans-serif; font-size: 15px; font-weight: 700;
+            color: var(--text); line-height: 1.6;
+        }
+        .adhan-mosque-link {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: linear-gradient(135deg, rgba(255,215,0,0.22), rgba(255,215,0,0.08));
+            color: var(--gold-bright);
+            border: 1px solid rgba(255,215,0,0.5);
+            border-radius: 30px; padding: 10px 24px;
+            font-family: 'Tajawal', sans-serif; font-size: 15px; font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 0 20px rgba(255,215,0,0.25);
+            transition: all .2s;
+            letter-spacing: 0.5px;
+        }
+        .adhan-mosque-link:hover {
+            background: rgba(255,215,0,0.32);
+            box-shadow: 0 0 30px rgba(255,215,0,0.5);
+            transform: scale(1.04);
+        }
+
+        /* Countdown to next prayer */
+        .next-prayer-bar {
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            font-size: 12px; color: var(--text-dim); font-family: 'Tajawal', sans-serif;
+            margin-top: 12px; padding: 8px 14px;
+            background: rgba(255,215,0,0.05); border-radius: 10px;
+            border: 1px solid rgba(255,215,0,0.12);
+        }
+        .next-prayer-bar .countdown {
+            font-family: 'DM Mono', monospace; font-size: 13px;
+            color: var(--gold-bright); font-weight: 700; direction: ltr;
+        }
     </style>
 </head>
 <body>
@@ -501,8 +734,9 @@
 
     <!-- HEADER -->
     <div class="header">
-        <div class="crown-ring">
-            <span class="crown-icon">☽</span>
+        <div class="crown-ring" id="crown-ring">
+            <span class="crown-icon crown-icon-normal" id="crown-icon-normal">☽</span>
+            <span class="crown-icon-minaret" id="crown-icon-minaret">🕌</span>
         </div>
         <div class="app-title-arabic">صيدليتي</div>
         <div class="app-sub">تحديد الصيدليات القريبة · نظام تحديد المواقع</div>
@@ -538,6 +772,20 @@
         <span id="gps-txt">جارٍ تفعيل GPS...</span>
     </div>
 
+    <!-- ═══ مواقيت الصلاة — شريط أفقي ═══ -->
+    <div class="prayer-section" id="prayer-section">
+        <div class="prayer-card">
+            <div class="prayer-card-header">
+                <span class="prayer-card-title">🕌 مواقيت الصلاة</span>
+                <span class="prayer-hijri" id="prayer-hijri">تونس</span>
+            </div>
+            <div class="prayer-strip" id="prayer-strip">
+                <div style="color:var(--text-dim);font-size:12px;font-family:'Tajawal',sans-serif;padding:10px 0;">جارٍ تحميل المواقيت...</div>
+            </div>
+
+        </div>
+    </div>
+
     <!-- رابط خرائط قوقل -->
     <div class="maps-global">
         <a id="global-maps-link" href="#" target="_blank">
@@ -570,6 +818,20 @@
         <span class="footer-arabic">صيدليتي</span>
         <span class="footer-sub">تحديد المواقع · في الوقت الفعلي</span>
     </div>
+</div>
+
+<!-- Adhan overlay -->
+<div class="adhan-overlay" id="adhan-overlay">
+    <div class="adhan-minaret-big">🕌</div>
+    <div class="adhan-prayer-name" id="adhan-prayer-name">الفجر</div>
+    <div class="adhan-label">حان وقت الصلاة · الأذان</div>
+    <div class="adhan-mosque-box">
+        <div class="adhan-mosque-text">هل تبحث عن مسجد قريب منك؟</div>
+        <a class="adhan-mosque-link" href="https://salati.online/" target="_blank" rel="noopener">
+            🕌 salati.online
+        </a>
+    </div>
+    <button class="adhan-close-btn" onclick="closeAdhan()">✦ إغلاق</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
@@ -697,6 +959,185 @@ function startGPS(){
     },err=>{const msgs={1:'⚠️ رُفض إذن GPS. يرجى السماح بالموقع في المتصفح.',2:'⚠️ GPS غير متاح أو الإشارة ضعيفة.',3:'⚠️ انتهت مهلة GPS. حاول مجدداً.'};const msg=(err&&msgs[err.code])||'⚠️ خطأ GPS غير معروف.';document.getElementById('gps-txt').textContent=msg;pharmacyState(msg);if(err&&err.code===1&&gpsWatchId!==null){navigator.geolocation.clearWatch(gpsWatchId);gpsWatchId=null;}},GPS_OPT);
 }
 
+// ══════════════════════════════════════════════════════
+// MODULE SALAT — TUNIS (notifications uniquement)
+// ══════════════════════════════════════════════════════
+
+const PRAYER_KEYS = [
+    { key:'Fajr',    ar:'الفجر'   },
+    { key:'Dhuhr',   ar:'الظهر'   },
+    { key:'Asr',     ar:'العصر'   },
+    { key:'Maghrib', ar:'المغرب'  },
+    { key:'Isha',    ar:'العشاء'  },
+];
+
+const TUNIS_LAT = 36.8065, TUNIS_LON = 10.1815;
+
+let _prayerData     = null;
+let _prayerTick     = null;
+let _notifiedAdhan  = new Set();
+let _notified15     = new Set();
+let _adhanAudio     = null;
+let _minaretShowing = false;
+
+function _toMin(ts){
+    const p=(ts||'').substring(0,5).split(':');
+    return (+p[0]||0)*60+(+p[1]||0);
+}
+
+async function _fetchAPI(){
+    const n=new Date();
+    const url=`https://api.aladhan.com/v1/timings/${n.getDate()}-${n.getMonth()+1}-${n.getFullYear()}?latitude=${TUNIS_LAT}&longitude=${TUNIS_LON}&method=9&school=1`;
+    try{
+        const r=await fetch(url);
+        const j=await r.json();
+        if(j.code===200) return j.data;
+    }catch(e){}
+    return null;
+}
+
+function _vibrate3(){
+    if(navigator.vibrate) navigator.vibrate([500,200,500,200,500]);
+}
+
+function _playAdhan(){
+    _stopAdhan();
+    try{
+        _adhanAudio=new Audio('https://www.islamcan.com/audio/adhan/azan1.mp3');
+        _adhanAudio.volume=0.9;
+        _adhanAudio.onended=()=>closeAdhan();
+        _adhanAudio.play().catch(()=>{});
+    }catch(e){}
+}
+function _stopAdhan(){
+    if(_adhanAudio){_adhanAudio.pause();_adhanAudio.currentTime=0;_adhanAudio=null;}
+}
+
+function _showMinaret(){
+    if(_minaretShowing) return;
+    _minaretShowing=true;
+    document.getElementById('crown-ring').classList.add('adhan-playing');
+    document.getElementById('crown-icon-normal').style.display='none';
+    document.getElementById('crown-icon-minaret').style.display='flex';
+}
+function _hideMinaret(){
+    _minaretShowing=false;
+    document.getElementById('crown-ring').classList.remove('adhan-playing');
+    document.getElementById('crown-icon-normal').style.display='';
+    document.getElementById('crown-icon-minaret').style.display='none';
+}
+
+function closeAdhan(){
+    _stopAdhan();
+    _hideMinaret();
+    document.getElementById('adhan-overlay').classList.remove('visible');
+}
+
+function _openAdhan(prayerAr){
+    document.getElementById('adhan-prayer-name').textContent=prayerAr;
+    document.getElementById('adhan-overlay').classList.add('visible');
+    _showMinaret();
+    _playAdhan();
+}
+
+const PRAYER_ICONS = { Fajr:'🌙', Dhuhr:'☀️', Asr:'🌤️', Maghrib:'🌅', Isha:'🌑' };
+
+function _renderStrip(){
+    if(!_prayerData) return;
+    const now=new Date();
+    const nowMins=now.getHours()*60+now.getMinutes();
+    const strip=document.getElementById('prayer-strip');
+    if(!strip) return;
+
+    // find current & next prayer
+    let activeIdx=-1, nextIdx=-1;
+    const mins=PRAYER_KEYS.map(p=>_toMin(_prayerData.timings[p.key]||'00:00'));
+    for(let i=mins.length-1;i>=0;i--){ if(nowMins>=mins[i]){activeIdx=i;break;} }
+    nextIdx = (activeIdx < mins.length-1) ? activeIdx+1 : 0;
+
+    strip.innerHTML=PRAYER_KEYS.map((p,i)=>{
+        const t=(_prayerData.timings[p.key]||'--:--').substring(0,5);
+        const isActive=i===activeIdx;
+        const isNext=i===nextIdx && activeIdx!==-1;
+        // badge "الآن" seulement si la prière vient de commencer (dans les 60 min)
+        const pMins=mins[i];
+        const elapsed=nowMins-pMins;
+        let badge='';
+        if(isNext) badge='<span class="pc-badge" style="background:rgba(255,215,0,0.15);color:var(--gold-bright);border:1px solid rgba(255,215,0,0.4);">التالي</span>';
+        return `<div class="prayer-cell${isActive?' active':''}${isNext?' next-prayer':''}">
+            <span class="pc-icon">${PRAYER_ICONS[p.key]||'🕌'}</span>
+            <span class="pc-name">${p.ar}</span>
+            <span class="pc-time">${t}</span>
+            ${badge}
+        </div>`;
+    }).join('');
+
+    // hijri date
+    try{
+        const h=_prayerData.date&&_prayerData.date.hijri;
+        if(h){document.getElementById('prayer-hijri').textContent=`${h.day} ${h.month.ar} ${h.year}`;}
+    }catch(e){}
+}
+
+function manualAdhan(){
+    // unlock audio on user gesture then open adhan
+    const p=PRAYER_KEYS.find((_,i)=>{
+        const now=new Date();const nm=now.getHours()*60+now.getMinutes();
+        const m=_prayerData?_toMin(_prayerData.timings[PRAYER_KEYS[i].key]||'00:00'):0;
+        return nm>=m;
+    })||PRAYER_KEYS[0];
+    _openAdhan(p?p.ar:'الصلاة');
+}
+
+function _tick(){
+    if(!_prayerData) return;
+    const now=new Date();
+    const todayKey=now.toDateString();
+    const nowMins=now.getHours()*60+now.getMinutes();
+    const nowSecs=now.getSeconds();
+
+    _renderStrip();
+
+    PRAYER_KEYS.forEach(p=>{
+        const pMins=_toMin(_prayerData.timings[p.key]||'00:00');
+        const diff=pMins-nowMins;
+
+        // === ADHAN : exactement à l'heure ===
+        if(diff===0 && nowSecs<60){
+            const k=p.key+'_adhan_'+todayKey;
+            if(!_notifiedAdhan.has(k)){
+                _notifiedAdhan.add(k);
+                _openAdhan(p.ar);
+                showNotif('🕌 حان وقت '+p.ar,true);
+            }
+        }
+
+        // === VIBRATION : 15 min avant ===
+        if(diff===15 && nowSecs<60){
+            const k=p.key+'_15_'+todayKey;
+            if(!_notified15.has(k)){
+                _notified15.add(k);
+                _vibrate3();
+                const ts=(_prayerData.timings[p.key]||'').substring(0,5);
+                showNotif('⏰ '+p.ar+' بعد 15 دقيقة — '+ts,false);
+            }
+        }
+    });
+
+    // re-fetch à minuit
+    if(now.getHours()===0 && now.getMinutes()===0 && nowSecs<5){
+        _notifiedAdhan.clear();_notified15.clear();
+        _fetchAPI().then(d=>{if(d){_prayerData=d;_renderStrip();}});
+    }
+}
+
+async function initPrayerTimes(){
+    const data=await _fetchAPI();
+    if(data){ _prayerData=data; _renderStrip(); }
+    if(_prayerTick) clearInterval(_prayerTick);
+    _prayerTick=setInterval(_tick,1000);
+}
+
 window.onload=function(){
     const sel=document.getElementById('pos-mode-select');
     const panel=document.getElementById('manual-pos-panel');
@@ -716,6 +1157,18 @@ window.onload=function(){
     btn.onclick=applyManual;
     document.getElementById('manual-coords').addEventListener('keydown',e=>{if(e.key==='Enter')applyManual();});
     startGPS();
+    initPrayerTimes();
+    
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').then((registration) => {
+                console.log('SW registered: ', registration.scope);
+            }).catch((err) => {
+                console.log('SW registration failed: ', err);
+            });
+        });
+    }
 };
 </script>
 </body>

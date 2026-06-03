@@ -1,0 +1,17 @@
+{
+    "name": "صيدليتي",
+    "short_name": "صيدليتي",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#020b2e",
+    "theme_color": "#060d3a",
+    "description": "تطبيق صيدليتي للبحث عن الصيدليات",
+    "icons": [
+        {
+            "src": "./logo.svg",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}
