@@ -1,5 +1,13 @@
-const CACHE_NAME = "saydaliati-v1";
-const ASSETS = ["./", "./index.html", "./manifest.json", "./logo.svg"];
+const CACHE_NAME = "saydaliati-v2";
+const ASSETS = [
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./logo.svg",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./apple-touch-icon.png",
+];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -27,6 +35,22 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+
+  const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (e.request.mode === "navigate") {
+    e.respondWith(
+      fetch(e.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+          return response;
+        })
+        .catch(() => caches.match("./index.html")),
+    );
+    return;
+  }
 
   e.respondWith(
     caches.match(e.request).then((response) => {

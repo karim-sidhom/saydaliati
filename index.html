@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>صيدليتي</title>
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#060d3a">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="صيدليتي">
-    <link rel="apple-touch-icon" href="logo.svg">
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Tajawal:wght@300;400;500;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" rel="stylesheet">
     <style>
@@ -920,7 +921,7 @@ function _buildLines(){
         const distFr = m.dist < 1
             ? Math.round(m.dist*1000) + ' mètres'
             : (Math.round(m.dist*10)/10) + ' kilomètres';
-        lines.push({ text: ordinalsFr[i] + ' s'appelle ' + m.name + ' et se trouve à ' + distFr, lang: 'fr-FR' });
+        lines.push({ text: ordinalsFr[i] + " s'appelle " + m.name + ' et se trouve à ' + distFr, lang: 'fr-FR' });
     });
 
     // ── ANGLAIS ──
@@ -999,12 +1000,12 @@ function renderEmergencyNumbers(cc) {
     document.getElementById('emergency-numbers').innerHTML=d.numbers.map(n=>`<div class="emergency-num"><div class="emergency-num-info"><span class="emergency-num-digits">${n.num}</span><span class="emergency-num-label">${n.label}</span></div><a class="call-btn" href="tel:${n.num}">📞 اتصال</a></div>`).join('');
 }
 
-const GPS_ACC=150,GPS_AGE=30000,GPS_DIST=0.05,GPS_OPT={enableHighAccuracy:true,timeout:20000,maximumAge:0};
+const GPS_ACC=150,GPS_FALLBACK_ACC=2500,GPS_AGE=120000,GPS_DIST=0.05,GPS_INITIAL_FALLBACK_MS=8000,GPS_OPT={enableHighAccuracy:true,timeout:15000,maximumAge:60000};
 const RADII=[0.5,1,2,5,10,20];
 
 function haversineKm(a,b,c,e){const R=6371,dL=d2r(c-a),dO=d2r(e-b),x=Math.sin(dL/2)**2+Math.cos(d2r(a))*Math.cos(d2r(c))*Math.sin(dO/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 
-function showNotif(text,imp){Toastify({text,duration:4000,gravity:'bottom',position:'right',stopOnFocus:false,style:{background:imp?'rgba(212,160,23,0.92)':'rgba(6,13,58,0.95)',color:imp?'#060d3a':'#b8a878',border:imp?'1px solid #f5c842':'1px solid rgba(212,160,23,0.3)',borderRadius:'10px',fontFamily:"'Tajawal',sans-serif",fontSize:'13px',fontWeight:'700',padding:'10px 16px',boxShadow:'0 4px 16px rgba(0,0,0,0.5)'}}).showToast();}
+function showNotif(text,imp){if(!window.Toastify){console.info(text);return;}Toastify({text,duration:4000,gravity:'bottom',position:'right',stopOnFocus:false,style:{background:imp?'rgba(212,160,23,0.92)':'rgba(6,13,58,0.95)',color:imp?'#060d3a':'#b8a878',border:imp?'1px solid #f5c842':'1px solid rgba(212,160,23,0.3)',borderRadius:'10px',fontFamily:"'Tajawal',sans-serif",fontSize:'13px',fontWeight:'700',padding:'10px 16px',boxShadow:'0 4px 16px rgba(0,0,0,0.5)'}}).showToast();}
 
 function pharmacyState(msg){const l=document.getElementById('pharmacy-list');l.innerHTML='';const d=document.createElement('div');d.className='p-state';d.textContent=msg;l.appendChild(d);}
 
@@ -1062,10 +1063,17 @@ async function findNearby(lat,lon){
     pharmacyState('لم يتم العثور على صيدليات في هذه المنطقة.');
 }
 
-function initApp(lat,lng){
+function gpsStatusText(lat,lng,isManual,accuracy){
+    if(isManual)return`الموقع اليدوي: ${lat.toFixed(5)}، ${lng.toFixed(5)}`;
+    const acc=Number.isFinite(accuracy)?Math.round(accuracy):null;
+    const label=acc!==null&&acc>GPS_ACC?'GPS تقريبي':'GPS نشط';
+    return`${label}: ${lat.toFixed(5)}، ${lng.toFixed(5)}${acc!==null?' · دقة '+acc+' م':''}`;
+}
+
+function initApp(lat,lng,opts={}){
     const seq=++appLocationSeq; currentLat=lat; currentLng=lng;
-    const isManual=document.getElementById('pos-mode-select').value==='manual';
-    document.getElementById('gps-txt').textContent=isManual?`الموقع اليدوي: ${lat.toFixed(5)}، ${lng.toFixed(5)}`:`GPS نشط: ${lat.toFixed(5)}، ${lng.toFixed(5)}`;
+    const isManual=opts.manual===undefined?document.getElementById('pos-mode-select').value==='manual':opts.manual;
+    document.getElementById('gps-txt').textContent=gpsStatusText(lat,lng,isManual,opts.accuracy);
     document.getElementById('global-maps-link').href=`https://www.google.com/maps/search/pharmacy/@${lat},${lng},15z`;
     reverseGeocode(lat,lng).then(geo=>{
         if(seq!==appLocationSeq)return;
@@ -1075,9 +1083,30 @@ function initApp(lat,lng){
     findNearby(lat,lng);
 }
 
-function isGoodGps(p){if(!p||!p.coords)return false;const acc=p.coords.accuracy;if(!Number.isFinite(acc)||acc>GPS_ACC)return false;const age=Number.isFinite(p.timestamp)?Math.max(0,Date.now()-p.timestamp):Infinity;return age<=GPS_AGE;}
+function gpsQuality(p){
+    if(!p||!p.coords)return{usable:false,accurate:false,acc:Infinity};
+    const{latitude,longitude,accuracy}=p.coords;
+    const acc=Number.isFinite(accuracy)?accuracy:Infinity;
+    const age=Number.isFinite(p.timestamp)?Math.max(0,Date.now()-p.timestamp):Infinity;
+    const valid=Number.isFinite(latitude)&&latitude>=-90&&latitude<=90&&Number.isFinite(longitude)&&longitude>=-180&&longitude<=180;
+    return{usable:valid&&age<=GPS_AGE&&acc<=GPS_FALLBACK_ACC,accurate:valid&&age<=GPS_AGE&&acc<=GPS_ACC,acc};
+}
 
-function applyGps(pos,notify=true){const{latitude:nl,longitude:no,accuracy:acc}=pos.coords;const at=Number.isFinite(acc)?`${Math.round(acc)} م`:'?';const has=Number.isFinite(currentLat)&&Number.isFinite(currentLng);const dist=has?haversineKm(currentLat,currentLng,nl,no):Infinity;if(!has||dist>GPS_DIST){initApp(nl,no);if(has&&notify)showNotif(`📍 موقع جديد: ${nl.toFixed(4)}، ${no.toFixed(4)} · دقة ${at}`,true);return true;}return false;}
+function betterGps(a,b){if(!a)return b;return gpsQuality(b).acc<gpsQuality(a).acc?b:a;}
+
+function gpsUnavailableMessage(){
+    const local=['localhost','127.0.0.1','::1','[::1]'].includes(location.hostname);
+    if(!window.isSecureContext&&!local)return'⚠️ GPS وPWA يحتاجان HTTPS أو localhost. افتح التطبيق عبر رابط آمن.';
+    return'⚠️ GPS غير مدعوم في هذا المتصفح.';
+}
+
+function gpsErrorMessage(err){
+    if(!window.isSecureContext)return'⚠️ GPS وPWA يحتاجان HTTPS أو localhost. افتح التطبيق عبر رابط آمن.';
+    const msgs={1:'⚠️ رُفض إذن GPS. اسمح بالموقع من إعدادات المتصفح أو أدخل الإحداثيات يدوياً.',2:'⚠️ GPS غير متاح أو الإشارة ضعيفة. يمكنك إدخال الإحداثيات يدوياً.',3:'⚠️ انتهت مهلة GPS. نحاول مجدداً، ويمكنك إدخال الإحداثيات يدوياً.'};
+    return(err&&msgs[err.code])||'⚠️ خطأ GPS غير معروف.';
+}
+
+function applyGps(pos,notify=true){const{latitude:nl,longitude:no,accuracy:acc}=pos.coords;const at=Number.isFinite(acc)?`${Math.round(acc)} م`:'?';const has=Number.isFinite(currentLat)&&Number.isFinite(currentLng);const dist=has?haversineKm(currentLat,currentLng,nl,no):Infinity;if(!has||dist>GPS_DIST){initApp(nl,no,{accuracy:acc});if(has&&notify)showNotif(`📍 موقع جديد: ${nl.toFixed(4)}، ${no.toFixed(4)} · دقة ${at}`,true);return true;}document.getElementById('gps-txt').textContent=gpsStatusText(nl,no,false,acc);return false;}
 
 function startGPS(){
     if(gpsWatchId!==null){navigator.geolocation.clearWatch(gpsWatchId);gpsWatchId=null;}
@@ -1086,12 +1115,33 @@ function startGPS(){
     pharmacyState('في انتظار إحداثيات GPS...');
     document.getElementById('global-maps-link').href='#';
     document.getElementById('zone-title').textContent='الصيدليات القريبة';
-    if(!navigator.geolocation){document.getElementById('gps-txt').textContent='⚠️ GPS غير مدعوم في هذا المتصفح.';pharmacyState('⚠️ متصفحك لا يدعم تحديد الموقع الجغرافي.');return;}
+    if(!navigator.geolocation){const msg=gpsUnavailableMessage();document.getElementById('gps-txt').textContent=msg;pharmacyState(msg);return;}
     let init=false;
-    gpsWatchId=navigator.geolocation.watchPosition(pos=>{
-        if(!isGoodGps(pos)){const acc=pos.coords?Math.round(pos.coords.accuracy):'?';document.getElementById('gps-txt').textContent=`📡 انتظار إشارة GPS... (دقة: ${acc} م)`;if(!init)pharmacyState('إشارة GPS ضعيفة، يرجى الانتظار...');return;}
-        applyGps(pos,init);init=true;
-    },err=>{const msgs={1:'⚠️ رُفض إذن GPS. يرجى السماح بالموقع في المتصفح.',2:'⚠️ GPS غير متاح أو الإشارة ضعيفة.',3:'⚠️ انتهت مهلة GPS. حاول مجدداً.'};const msg=(err&&msgs[err.code])||'⚠️ خطأ GPS غير معروف.';document.getElementById('gps-txt').textContent=msg;pharmacyState(msg);if(err&&err.code===1&&gpsWatchId!==null){navigator.geolocation.clearWatch(gpsWatchId);gpsWatchId=null;}},GPS_OPT);
+    let pendingPos=null;
+    let fallbackTimer=null;
+    const clearFallback=()=>{if(fallbackTimer){clearTimeout(fallbackTimer);fallbackTimer=null;}};
+    const useInitial=pos=>{clearFallback();applyGps(pos,false);init=true;};
+    try{
+        gpsWatchId=navigator.geolocation.watchPosition(pos=>{
+            const q=gpsQuality(pos);
+            const acc=Number.isFinite(q.acc)?Math.round(q.acc):'?';
+            if(!q.usable){document.getElementById('gps-txt').textContent=`📡 انتظار إشارة GPS... (دقة: ${acc} م)`;if(!init)pharmacyState('إشارة GPS ضعيفة، يرجى الانتظار أو أدخل الإحداثيات يدوياً.');return;}
+            if(!init){
+                pendingPos=betterGps(pendingPos,pos);
+                if(q.accurate){useInitial(pos);return;}
+                document.getElementById('gps-txt').textContent=`📡 تم التقاط موقع تقريبي... (دقة: ${acc} م)`;
+                pharmacyState('تم التقاط موقع تقريبي، نحاول تحسين الدقة...');
+                if(!fallbackTimer){fallbackTimer=setTimeout(()=>{fallbackTimer=null;if(!init&&pendingPos){useInitial(pendingPos);showNotif('تم استخدام موقع تقريبي. للإحكام أكثر أدخل الإحداثيات يدوياً.',false);}},GPS_INITIAL_FALLBACK_MS);}
+                return;
+            }
+            if(!q.accurate){document.getElementById('gps-txt').textContent=`📡 GPS تقريبي، ننتظر دقة أفضل... (${acc} م)`;return;}
+            applyGps(pos,true);
+        },err=>{clearFallback();const msg=gpsErrorMessage(err);document.getElementById('gps-txt').textContent=msg;pharmacyState(msg);if(err&&err.code===1&&gpsWatchId!==null){navigator.geolocation.clearWatch(gpsWatchId);gpsWatchId=null;}},GPS_OPT);
+    }catch(e){
+        const msg=gpsUnavailableMessage();
+        document.getElementById('gps-txt').textContent=msg;
+        pharmacyState(msg);
+    }
 }
 
 // ══════════════════════════════════════════════════════
