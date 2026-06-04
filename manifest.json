@@ -2,10 +2,15 @@
     "name": "صيدليتي",
     "short_name": "صيدليتي",
     "start_url": "./index.html",
+    "scope": "./",
     "display": "standalone",
     "background_color": "#020b2e",
     "theme_color": "#060d3a",
     "description": "تطبيق صيدليتي للبحث عن الصيدليات",
+    "orientation": "portrait-primary",
+    "lang": "ar",
+    "dir": "rtl",
+    "categories": ["medical", "utilities"],
     "icons": [
         {
             "src": "./logo.svg",

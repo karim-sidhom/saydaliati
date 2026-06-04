@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>صيدليتي</title>
-    <meta name="theme-color" content="#060d3a">
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="logo.svg">
+    <meta name="theme-color" content="#060d3a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="صيدليتي">
+    <link rel="apple-touch-icon" href="logo.svg">
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Tajawal:wght@300;400;500;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" rel="stylesheet">
     <style>
@@ -807,6 +808,16 @@
     </div>
 
     <!-- قائمة الصيدليات -->
+    <!-- زر إيقاف الأُورَاتُور -->
+    <div style="display:flex;justify-content:center;margin-bottom:16px;">
+        <button id="tts-toggle-btn" onclick="ttsRestart()" style="
+            background:linear-gradient(135deg,rgba(255,215,0,0.25),rgba(255,215,0,0.08));
+            color:var(--gold-bright);border:2px solid rgba(255,215,0,0.6);
+            border-radius:50px;padding:14px 32px;font-family:'Tajawal',sans-serif;
+            font-size:16px;font-weight:800;cursor:pointer;transition:all .2s;letter-spacing:.5px;
+            box-shadow:0 0 24px rgba(255,215,0,0.3);width:100%;
+        ">🔊 اضغط لسماع الصيدليات</button>
+    </div>
     <div class="sec-head">
         <span>☽</span>
         <span id="zone-title">الصيدليات القريبة</span>
@@ -838,6 +849,128 @@
 <script>
 const d2r = d => d * Math.PI / 180;
 let currentLat=null, currentLng=null, gpsWatchId=null, pharmacySearchSeq=0, appLocationSeq=0, lastCountryCode='';
+
+// ══════════════════════════════════════════════════════
+// MODULE ORATEUR — Text-to-Speech pour les pharmacies
+// L'orateur continue même si le GPS s'interrompt après
+// la première capture.
+// ══════════════════════════════════════════════════════
+// ══ ORATEUR — ResponsiveVoice ══
+let _lastPharmacyItems = [];
+let _ttsEnabled = false;
+let _arVoice = null;
+
+function _loadVoice(){
+    if(!window.speechSynthesis) return;
+    const voices = window.speechSynthesis.getVoices();
+    _arVoice = voices.find(v=>v.lang==='ar-SA')
+            || voices.find(v=>v.lang==='ar-TN')
+            || voices.find(v=>v.lang==='ar-EG')
+            || voices.find(v=>v.lang.startsWith('ar'))
+            || null;
+}
+if(window.speechSynthesis){
+    window.speechSynthesis.onvoiceschanged = _loadVoice;
+    _loadVoice();
+}
+
+function _getVoiceForLang(lang){
+    const voices = window.speechSynthesis.getVoices();
+    return voices.find(v=>v.lang===lang)
+        || voices.find(v=>v.lang.startsWith(lang.substring(0,2)))
+        || null;
+}
+
+function _readSequence(lines, idx){
+    if(!_ttsEnabled || !window.speechSynthesis || idx >= lines.length) return;
+    window.speechSynthesis.cancel();
+    const item = lines[idx];
+    const text = typeof item === 'object' ? item.text : item;
+    const lang = typeof item === 'object' ? item.lang : 'ar-SA';
+    const u = new SpeechSynthesisUtterance(text);
+    const v = _getVoiceForLang(lang);
+    if(v){ u.voice = v; u.lang = v.lang; } else { u.lang = lang; }
+    u.rate = 0.88; u.pitch = 1; u.volume = 1;
+    u.onend   = () => setTimeout(() => _readSequence(lines, idx+1), 400);
+    u.onerror = () => setTimeout(() => _readSequence(lines, idx+1), 400);
+    window.speechSynthesis.speak(u);
+}
+
+function _buildLines(){
+    const lines = [];
+    const total = _lastPharmacyItems.length;
+    const shown = _lastPharmacyItems.slice(0,5);
+
+    const ordinalsAr = ['الأولى','الثانية','الثالثة','الرابعة','الخامسة'];
+    const ordinalsFr = ['La première','La deuxième','La troisième','La quatrième','La cinquième'];
+    const ordinalsEn = ['The first','The second','The third','The fourth','The fifth'];
+
+    // ── ARABE ──
+    lines.push({ text: 'يوجد بالقرب منك ' + total + ' صيدلية. إليك قائمة الأقرب إليك', lang: 'ar-SA' });
+    shown.forEach((m,i)=>{
+        const distAr = m.dist < 1
+            ? Math.round(m.dist*1000) + ' متراً'
+            : (Math.round(m.dist*10)/10) + ' كيلومتر';
+        lines.push({ text: 'الصيدلية ' + ordinalsAr[i] + ' تسمى ' + m.name + ' وتبعد عنك ' + distAr, lang: 'ar-SA' });
+    });
+
+    // ── FRANÇAIS ──
+    lines.push({ text: 'Vous avez ' + total + ' pharmacies près de vous. Voici la liste des plus proches', lang: 'fr-FR' });
+    shown.forEach((m,i)=>{
+        const distFr = m.dist < 1
+            ? Math.round(m.dist*1000) + ' mètres'
+            : (Math.round(m.dist*10)/10) + ' kilomètres';
+        lines.push({ text: ordinalsFr[i] + ' s'appelle ' + m.name + ' et se trouve à ' + distFr, lang: 'fr-FR' });
+    });
+
+    // ── ANGLAIS ──
+    lines.push({ text: 'You have ' + total + ' pharmacies near you. Here is the list of the closest ones', lang: 'en-US' });
+    shown.forEach((m,i)=>{
+        const distEn = m.dist < 1
+            ? Math.round(m.dist*1000) + ' meters'
+            : (Math.round(m.dist*10)/10) + ' kilometers';
+        lines.push({ text: ordinalsEn[i] + ' is called ' + m.name + ' and is ' + distEn + ' away', lang: 'en-US' });
+    });
+
+    return lines;
+}
+
+function announcePharmacies(items){
+    if(items && items.length > 0) _lastPharmacyItems = items;
+}
+
+// La lecture TTS ne démarre que sur pression du bouton
+
+function ttsStop(){
+    _ttsEnabled = false;
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    const btn = document.getElementById('tts-toggle-btn');
+    if(btn){
+        btn.textContent = '🔇 الأُورَاتُور متوقف — اضغط لإعادة التشغيل';
+        btn.style.opacity = '0.5';
+        btn.style.boxShadow = 'none';
+        btn.onclick = ttsRestart;
+    }
+}
+
+function ttsRestart(){
+    _ttsEnabled = true;
+    _loadVoice();
+    const btn = document.getElementById('tts-toggle-btn');
+    if(btn){
+        btn.textContent = '🔊 الأُورَاتُور يعمل — اضغط للإيقاف';
+        btn.style.opacity = '1';
+        btn.style.boxShadow = '0 0 24px rgba(255,215,0,0.3)';
+        btn.onclick = ttsStop;
+    }
+    // Lire directement — ce bouton EST un geste utilisateur
+    if(_lastPharmacyItems.length > 0){
+        window.speechSynthesis.cancel();
+        setTimeout(() => _readSequence(_buildLines(), 0), 200);
+    }
+}
+
+function toggleTTS(){ ttsStop(); }
 
 const EMERGENCY_DB = {
     TN:{name:'تونس',flag:'🇹🇳',numbers:[{num:'190',label:'الشرطة الوطنية'},{num:'197',label:'الحرس الوطني'},{num:'198',label:'الحماية المدنية'},{num:'1404',label:'الإسعاف SAMU'}]},
@@ -876,6 +1009,8 @@ function showNotif(text,imp){Toastify({text,duration:4000,gravity:'bottom',posit
 function pharmacyState(msg){const l=document.getElementById('pharmacy-list');l.innerHTML='';const d=document.createElement('div');d.className='p-state';d.textContent=msg;l.appendChild(d);}
 
 function renderPharmacies(items,radiusKm,shown=5,placeLabel='',onExpand=null){
+    // Annoncer la première page seulement
+    if(shown===5) announcePharmacies(items);
     const sfx=placeLabel?` — ${placeLabel}`:'';
     document.getElementById('zone-title').textContent=`الصيدليات${sfx} (< ${radiusKm} كم)`;
     const list=document.getElementById('pharmacy-list'); list.innerHTML='';
@@ -987,7 +1122,7 @@ function _toMin(ts){
 
 async function _fetchAPI(){
     const n=new Date();
-    const url=`https://api.aladhan.com/v1/timings/${n.getDate()}-${n.getMonth()+1}-${n.getFullYear()}?latitude=${TUNIS_LAT}&longitude=${TUNIS_LON}&method=9&school=1`;
+    const url=`https://api.aladhan.com/v1/timings/${n.getDate()}-${n.getMonth()+1}-${n.getFullYear()}?latitude=${TUNIS_LAT}&longitude=${TUNIS_LON}&method=3&school=0`;
     try{
         const r=await fetch(url);
         const j=await r.json();
@@ -1156,20 +1291,21 @@ window.onload=function(){
     };
     btn.onclick=applyManual;
     document.getElementById('manual-coords').addEventListener('keydown',e=>{if(e.key==='Enter')applyManual();});
+    // Mode automatique GPS à l'ouverture
+    sel.value = 'auto';
+    panel.style.display = 'none';
     startGPS();
     initPrayerTimes();
-    
-    // Register Service Worker for PWA
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js').then((registration) => {
-                console.log('SW registered: ', registration.scope);
-            }).catch((err) => {
-                console.log('SW registration failed: ', err);
-            });
-        });
-    }
 };
+
+// Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => {
+            console.warn('Service worker registration failed:', err);
+        });
+    });
+}
 </script>
 </body>
 </html>
